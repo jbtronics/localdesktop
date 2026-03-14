@@ -8,8 +8,15 @@ shopt -s nullglob
 cd "$BUILD_DIR"
 
 if [ -d "proot" ]; then
-    echo "proot source already present, skipping clone."
-else
+    if [ ! -d "proot/.git" ]; then
+        echo "proot directory exists but is not a git repository; removing stale directory."
+        rm -rf proot
+    else
+        echo "proot source already present, skipping clone."
+    fi
+fi
+
+if [ ! -d "proot" ]; then
     git clone https://github.com/termux/proot.git
 fi
 

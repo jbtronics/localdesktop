@@ -1,2 +1,4 @@
 build/static-aarch64/
 build/root-aarch64/
+build/proot/
+build/talloc-*/
