@@ -21,7 +21,7 @@ elif [ -f build/proot/src/loader/loader-m32 ]; then
 fi
 
 if [ -n "$LOADER_PATH" ]; then
-    LOADER_SIZE=$(stat -f%z "$LOADER_PATH")
+    LOADER_SIZE=$(stat -c%s "$LOADER_PATH" 2>/dev/null || stat -f%z "$LOADER_PATH")
     if [ "$LOADER_SIZE" -lt 100000000 ]; then
         echo "Copying and stripping $(basename "$LOADER_PATH") to $ASSETS_LIB_DIR/libproot_loader.so"
         cp "$LOADER_PATH" "$ASSETS_LIB_DIR/libproot_loader.so"
