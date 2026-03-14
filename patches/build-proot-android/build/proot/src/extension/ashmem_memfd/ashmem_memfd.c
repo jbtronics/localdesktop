@@ -1,3 +1,4 @@
+#include <string.h> //This is different from termux's original code, but is required in our localdesktop build environment
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
