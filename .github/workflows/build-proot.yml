@@ -11,9 +11,15 @@ on:
         description: "Version label for the release tag (e.g. 5.1.107)"
         required: false
         default: ""
+      create_pr:
+        description: "Automatically create a pull request to update proot assets"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -89,3 +95,29 @@ jobs:
           name: proot-android-packages
           path: patches/build-proot-android/packages/*.tar.gz
           retention-days: 90
+
+      - name: Upload proot asset libraries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: proot-android-assets
+          path: assets/libs/arm64-v8a/libproot*.so
+          retention-days: 90
+
+      - name: Create pull request to update proot assets
+        if: ${{ github.event.inputs.create_pr == 'true' }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update proot assets to v${{ steps.proot.outputs.version }} (${{ steps.proot.outputs.commit }})"
+          branch: "chore/update-proot-assets-${{ steps.proot.outputs.version }}"
+          delete-branch: true
+          title: "chore: update proot assets to v${{ steps.proot.outputs.version }}"
+          body: |
+            Automated update of proot asset libraries built from commit [`${{ steps.proot.outputs.commit }}`](https://github.com/termux/proot/commit/${{ steps.proot.outputs.commit }}) (version ${{ steps.proot.outputs.version }}).
+
+            Updated files:
+            - `assets/libs/arm64-v8a/libproot.so`
+            - `assets/libs/arm64-v8a/libproot_loader.so`
+          add-paths: |
+            assets/libs/arm64-v8a/libproot.so
+            assets/libs/arm64-v8a/libproot_loader.so
