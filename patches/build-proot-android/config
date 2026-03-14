@@ -1,5 +1,12 @@
 TALLOC_V='2.4.3'
 
+# Pinned proot commit from termux/proot (matches termux-packages version 5.1.107 rev 70)
+PROOT_COMMIT='4dba3afbf3a63af89b4d9c1a59bf2bda10f4d10f'
+PROOT_VERSION='5.1.107'
+
+# Android NDK version used for cross-compilation
+NDK_VERSION='r28'
+
 # `pre5' is for Android API < 21 where we can't _FILE_OFFSET_BITS=64 at least
 
 ARCHS='aarch64'
@@ -13,7 +20,17 @@ PKG_DIR="$BASE_DIR/packages"
 mkdir -p "$PKG_DIR"
 
 NDK="$ANDROID_NDK_HOME"
-TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/darwin-x86_64"
+
+# Detect host OS for the correct NDK toolchain prebuilt directory
+case "$(uname -s)" in
+    Darwin) _TOOLCHAIN_OS='darwin-x86_64' ;;
+    Linux)  _TOOLCHAIN_OS='linux-x86_64' ;;
+    *)
+        echo "Unsupported host OS: $(uname -s). Only Linux and macOS are supported." >&2
+        exit 1
+        ;;
+esac
+TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/$_TOOLCHAIN_OS"
 
 set-arch() {
 	MARCH="${1%%-*}"

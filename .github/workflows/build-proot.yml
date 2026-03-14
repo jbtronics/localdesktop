@@ -1,0 +1,108 @@
+name: Build PRoot for Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      proot_commit:
+        description: "termux/proot commit to build (leave blank to use version pinned in config)"
+        required: false
+        default: ""
+      proot_version:
+        description: "Version label for the release tag (e.g. 5.1.107)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pinned version from config
+        id: config
+        run: |
+          COMMIT=$(grep '^PROOT_COMMIT=' patches/build-proot-android/config | cut -d"'" -f2)
+          VERSION=$(grep '^PROOT_VERSION=' patches/build-proot-android/config | cut -d"'" -f2)
+          NDK_VERSION=$(grep '^NDK_VERSION=' patches/build-proot-android/config | cut -d"'" -f2)
+          if [ -z "$COMMIT" ] || [ -z "$VERSION" ] || [ -z "$NDK_VERSION" ]; then
+            echo "ERROR: One or more required variables (PROOT_COMMIT, PROOT_VERSION, NDK_VERSION) are missing from patches/build-proot-android/config." >&2
+            exit 1
+          fi
+          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "ndk_version=${NDK_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve effective proot commit and version
+        id: proot
+        run: |
+          COMMIT="${{ github.event.inputs.proot_commit }}"
+          VERSION="${{ github.event.inputs.proot_version }}"
+          if [ -z "$COMMIT" ]; then
+            COMMIT="${{ steps.config.outputs.commit }}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ steps.config.outputs.version }}"
+          fi
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building proot commit $COMMIT (version $VERSION)"
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y make git wget
+
+      - name: Download Android NDK ${{ steps.config.outputs.ndk_version }}
+        run: |
+          NDK_VERSION="${{ steps.config.outputs.ndk_version }}"
+          wget -q "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" \
+               -O /tmp/android-ndk.zip
+          unzip -q /tmp/android-ndk.zip -d /opt
+          mv "/opt/android-ndk-${NDK_VERSION}" /opt/android-ndk
+          rm /tmp/android-ndk.zip
+          echo "ANDROID_NDK_HOME=/opt/android-ndk" >> "$GITHUB_ENV"
+
+      - name: Override proot commit in config (if provided via input)
+        if: github.event.inputs.proot_commit != ''
+        run: |
+          sed -i "s/^PROOT_COMMIT=.*/PROOT_COMMIT='${{ steps.proot.outputs.commit }}'/" \
+            patches/build-proot-android/config
+          sed -i "s/^PROOT_VERSION=.*/PROOT_VERSION='${{ steps.proot.outputs.version }}'/" \
+            patches/build-proot-android/config
+
+      - name: Build proot
+        working-directory: patches/build-proot-android
+        run: |
+          chmod +x build.sh get-proot.sh get-talloc.sh make-talloc-static.sh \
+                    make-proot.sh make-proot-assets.sh pack.sh
+          ./build.sh
+
+      - name: Copy binaries to APK assets directory
+        working-directory: patches/build-proot-android
+        run: ./make-proot-assets.sh
+
+      - name: Upload proot packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: proot-android-packages
+          path: patches/build-proot-android/packages/*.tar.gz
+          retention-days: 90
+
+      - name: Create GitHub release with proot binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: proot-${{ steps.proot.outputs.version }}
+          name: "PRoot ${{ steps.proot.outputs.version }} for Android"
+          body: |
+            Pre-built PRoot binaries for Android (aarch64), built from
+            [termux/proot@${{ steps.proot.outputs.commit }}](https://github.com/termux/proot/commit/${{ steps.proot.outputs.commit }}).
+
+            Built with Android NDK ${{ steps.config.outputs.ndk_version }} targeting API level 21+.
+
+            To use these in the LocalDesktop APK build, extract `proot-android-aarch64.tar.gz`
+            and copy the binaries to `assets/libs/arm64-v8a/` using `make-proot-assets.sh`.
+          prerelease: true
+          files: patches/build-proot-android/packages/*.tar.gz
