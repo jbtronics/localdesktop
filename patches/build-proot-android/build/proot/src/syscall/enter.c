@@ -616,6 +616,23 @@ int translate_syscall_enter(Tracee *tracee)
 		if (peek_reg(tracee, CURRENT, SYSARG_2) == TCSETS + 2 /* + TCSAFLUSH */) {
 			poke_reg(tracee, SYSARG_2, TCSETS + TCSANOW);
 		}
+
+		if (peek_reg(tracee, CURRENT, SYSARG_2) == TCGETS2) {
+			poke_reg(tracee, SYSARG_2, TCGETS);
+		}
+
+		if (peek_reg(tracee, CURRENT, SYSARG_2) == TCSETS2) {
+			poke_reg(tracee, SYSARG_2, TCSETS);
+		}
+
+		if (peek_reg(tracee, CURRENT, SYSARG_2) == TCSETSW2) {
+			poke_reg(tracee, SYSARG_2, TCSETSW);
+		}
+
+		if (peek_reg(tracee, CURRENT, SYSARG_2) == TCSETSF2) {
+			poke_reg(tracee, SYSARG_2, TCSETSF);
+		}
+
 		break;
 #endif
 	
