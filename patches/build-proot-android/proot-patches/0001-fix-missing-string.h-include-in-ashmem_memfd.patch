@@ -1,0 +1,22 @@
+From: Fix missing string.h include in ashmem_memfd.c
+Subject: [PATCH] fix: add missing string.h include in ashmem_memfd.c
+
+Add missing #include <string.h> to fix implicit declaration errors for
+strcmp and memset when compiling with -Werror=implicit-function-declaration
+(required by the Android NDK clang toolchain).
+---
+ src/extension/ashmem_memfd/ashmem_memfd.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/extension/ashmem_memfd/ashmem_memfd.c b/src/extension/ashmem_memfd/ashmem_memfd.c
+index df3f3b5..2f13973 100644
+--- a/src/extension/ashmem_memfd/ashmem_memfd.c
++++ b/src/extension/ashmem_memfd/ashmem_memfd.c
+@@ -1,6 +1,7 @@
+ #include <stdlib.h>
+ #include <signal.h>
+ #include <unistd.h>
++#include <string.h>
+ #include <sys/syscall.h>  /* __NR_memfd_create,  */
+ #include <linux/ashmem.h> /* ASHMEM_GET_SIZE,  */
+ #include <linux/memfd.h>  /* MFD_CLOEXEC  */
